@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!-- ============ 可替换区：标题 / OG 分享元信息（视觉对齐参考页深色科技风）============ -->
+<title>工程行业早报｜工程造价 · EPC管理</title>
+<meta property="og:title" content="工程行业早报｜工程造价 · EPC管理">
+<meta property="og:description" content="工程造价、EPC管理、市场价格与典型案例，每日速览。内容由真实公开来源整理。">
+<meta property="og:image" content="">
+<meta property="og:url" content="">
+<meta property="og:type" content="article">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+/* ===== 配色：对齐参考页 —— 近黑底 + 唯一科技蓝，分类色仅作微区分 ===== */
+:root { --bg:#0a0a0a; --ink:#ffffff; --acc:#2E9BFF; --dim:#b9b9b9; }
+html, body { background: var(--bg); color: var(--ink);
+  font-family: -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Arial,sans-serif; -webkit-font-smoothing: antialiased; }
+/* ===== 容器：黑底 + 1px 描边（同参考页）===== */
+.page { position: relative; max-width: 430px; margin: 18px auto; min-height: 820px; overflow: hidden;
+  background: var(--bg); border: 1px solid #1c1c1c; border-radius: 4px; }
+/* ===== 虚化背景层：斜向蓝细线漂移 + 双蓝光晕呼吸（同参考页）===== */
+.bg { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  filter: blur(6px); transform: scale(1.14); }
+.bg-lines{position:absolute;inset:0;
+  background:repeating-linear-gradient(118deg, transparent 0 26px, rgba(46,155,255,.045) 26px 27px);
+  animation:driftBg 14s linear infinite;}
+@keyframes driftBg{from{background-position:0 0}to{background-position:-54px 0}}
+.bg-glow{position:absolute;inset:0;
+  background:
+    radial-gradient(58% 38% at 82% 16%, rgba(46,155,255,.09), transparent 70%),
+    radial-gradient(46% 32% at 12% 84%, rgba(46,155,255,.06), transparent 72%);
+  animation:bgBreathe 9s ease-in-out infinite;}
+@keyframes bgBreathe{0%,100%{opacity:.55}50%{opacity:1}}
+.content { position: relative; z-index: 1; padding: 30px 24px 30px; }
+
+/* ---- 封面：深底蓝调 + 工程建筑图标（零外链，风格对齐参考页深色卡）---- */
+.cover { position: relative; width: 100%; height: 188px; border-radius: 12px; overflow: hidden;
+  margin-bottom: 22px; border: 1px solid #1c1c1c;
+  background: radial-gradient(120% 90% at 80% 10%, rgba(46,155,255,.20), transparent 60%),
+              linear-gradient(135deg,#0d1626 0%,#10151f 60%,#0b0f16 100%);
+  display: flex; align-items: center; }
+.cover::before{ content:""; position:absolute; inset:0;
+  background:repeating-linear-gradient(118deg, transparent 0 24px, rgba(46,155,255,.05) 24px 25px); }
+.cover .cov-ico{ position:absolute; right:18px; top:50%; transform:translateY(-50%); width:74px; height:74px; opacity:.92; }
+.cover .cov-ico svg{ width:100%; height:100%; display:block; stroke:#6ec3ff; filter:drop-shadow(0 2px 10px rgba(46,155,255,.4)); }
+.cover .cov-txt{ position:relative; padding-left:20px; text-align:left; }
+.cover .cov-txt b{ display:block; font-size:22px; font-weight:900; letter-spacing:.08em; color:#fff; }
+.cover .cov-txt span{ font-size:11px; color:#8fb6e0; letter-spacing:.24em; }
+
+/* ---- 品牌徽章：蓝灰调（对齐参考页 ai-badge）---- */
+.brand-badge { display: flex; align-items: center; justify-content: space-between;
+  margin: 0 0 14px; padding: 8px 12px; border: 1px solid #2a3542; border-radius: 8px;
+  background: rgba(46,155,255,.05); color: #8fa8c4; text-decoration: none; }
+.brand-badge .bb-main { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; }
+.brand-badge .bb-tag { font-size: 10px; color: var(--bg); background: #5ec9a6; border-radius: 3px;
+  padding: 1px 5px; font-weight: 900; letter-spacing:.02em; }
+.brand-badge .bb-sub { font-size: 10.5px; color: #6d89a8; }
+.brand-badge .bb-arrow { color: var(--acc); font-size: 12px; }
+.brand-badge:active { background: rgba(46,155,255,.12); }
+
+.daily-head { text-align: center; margin-bottom: 6px; }
+.daily-title { font-size: 34px; font-weight: 900; letter-spacing: .04em; margin-bottom: 4px; }
+.daily-date { font-size: 12px; color: #6f8baa; letter-spacing: .18em; margin-bottom: 18px; font-weight: 700; }
+
+/* ---- 行业寄语：蓝色竖条引用（同参考页 bless）---- */
+.bless { border-left: 4px solid var(--acc); background: rgba(46,155,255,.08);
+  padding: 14px 16px; border-radius: 0 12px 12px 0; font-size: 15px; line-height: 1.8;
+  color: #e8f2ff; margin-bottom: 26px; }
+.bless b { color: var(--acc); display: block; font-size: 12px; letter-spacing: .14em; margin-bottom: 6px; font-weight: 900; }
+
+/* ---- 分类导航（工程增强：保留，仅用分类微色，不抢主调）---- */
+.cat-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.cat-nav .chip { font-size: 12px; font-weight: 800; padding: 6px 13px; border-radius: 999px;
+  border: 1px solid #2a3542; color: #9fb4cc; background: rgba(46,155,255,.04); cursor: pointer;
+  transition: all .18s ease; letter-spacing:.02em; }
+.cat-nav .chip.active { color: var(--bg); border-color: transparent; background: var(--acc); }
+
+.items-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 900;
+  letter-spacing: .1em; color: var(--acc); margin-bottom: 12px; }
+.items-h::before { content: ""; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #6ec3ff, #2e7bff); box-shadow: 0 0 8px #4aa3ff; }
+
+.item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid #1c1c1c; }
+.item:last-child { border-bottom: none; }
+.item-thumb { flex: 0 0 96px; width: 96px; height: 72px; border-radius: 8px; overflow: hidden;
+  background: #14181f; border: 1px solid #232a34; position: relative; display:flex; align-items:center; justify-content:center; }
+.item-thumb img { display: block; width: 50px; height: 50px; object-fit: contain; margin: auto;
+  border-radius: 9px; background: #fff; padding: 5px; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.item-thumb .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:800; letter-spacing:.5px; line-height:1.2; color:#fff; }
+/* 有站标图时隐藏蓝字占位（图加载失败由 favFail 内联 display:flex 覆盖回退）*/
+.item-thumb img.fav + .ph { display: none; }
+.item-body { flex: 1; min-width: 0; }
+.item-idx { display: inline-block; font-size: 11px; font-weight: 900; color: var(--bg);
+  background: var(--acc); border-radius: 4px; padding: 2px 7px; margin-right: 8px; vertical-align: 2px; }
+.item-tag { display: inline-block; font-size: 10.5px; font-weight: 800; border-radius: 4px;
+  padding: 2px 7px; margin-right: 6px; vertical-align: 1px; color:#cfe6ff; background:rgba(46,155,255,.18); }
+.item-title { font-size: 16.5px; font-weight: 800; line-height: 1.45; margin-bottom: 8px; }
+.item-title a { color: var(--ink); text-decoration: none; }
+.item-title a:active { color: var(--acc); }
+/* ---- 行业观点引用：蓝竖条 + 浅底（同参考页 item-comment）---- */
+.item-comment { position: relative; padding: 9px 12px 9px 14px; background: rgba(255,255,255,.05);
+  border-left: 3px solid var(--acc); border-radius: 0 10px 10px 0; }
+.item-comment p { margin: 0; font-size: 13.5px; line-height: 1.6; color: #e5e5e5; }
+.item-comment .src { display: block; margin-top: 5px; font-size: 11px; color: #8c8c8c; }
+.heat-note { font-size: 11px; color: #8c8c8c; margin-top: 10px; text-align: center; line-height:1.7; }
+
+/* ---- 底部推广卡 / 落款（蓝调，对齐参考页）---- */
+.card { display: flex; align-items: center; justify-content: space-between; margin-top: 24px;
+  padding: 14px 16px; border: 1px solid var(--acc); border-radius: 8px; color: var(--acc);
+  text-decoration: none; font-weight: 700; font-size: 14px; }
+.card:active { background: rgba(46,155,255,.1); }
+.ai-note { text-align: center; font-size: 11.5px; color: var(--dim); margin-top: 18px; line-height:1.7; }
+.sign { text-align: center; font-size: 13px; color: var(--dim); padding-top: 6px; font-weight: 700; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.reveal { opacity: 1; animation: rise .7s both cubic-bezier(.16,1,.3,1); }
+@media (prefers-reduced-motion: reduce) { .reveal, .bg-lines, .bg-glow { animation: none; } }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="bg"><div class="bg-lines"></div><div class="bg-glow"></div></div>
+  <div class="content">
+    <!-- 封面（纯 CSS 深底蓝调，零外链） -->
+    <div class="cover reveal">
+      <div class="cov-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/><path d="M9.5 11h.01M14.5 11h.01"/>
+        </svg>
+      </div>
+      <div class="cov-txt"><b>工程行业早报</b><span>COST · EPC · DAILY</span></div>
+    </div>
+
+    <!-- 品牌徽章：改成你自己的入口链接（默认指向公众号，落款用「扶手听风」） -->
+    <a class="brand-badge reveal" href="#" rel="noopener">
+      <span class="bb-main"><span class="bb-tag">造价</span>扶手听风<span class="bb-sub">· 工程早报</span></span>
+      <span class="bb-arrow">›</span>
+    </a>
+
+    <div class="daily-head">
+      <div class="daily-title" id="dt">工程行业早报</div>
+      <div class="daily-date" id="dd">—</div>
+    </div>
+
+    <div class="bless reveal">
+      <b>行业寄语</b>
+      <span id="bless"></span>
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="cat-nav" id="catNav">
+      <span class="chip active" data-cat="all">全部</span>
+      <span class="chip" data-cat="policy">造价政策</span>
+      <span class="chip" data-cat="epc">EPC 管理</span>
+      <span class="chip" data-cat="price">市场价格</span>
+      <span class="chip" data-cat="case">典型案例</span>
+      <span class="chip" data-cat="review">热评</span>
+    </div>
+
+    <div class="items-h">今日早报</div>
+    <div id="list"></div>
+    <div class="heat-note">注：行业观点为公开信息整理与示意，不构成计价依据或法律意见；<br>具体以官方文件、合同及审计结论为准。</div>
+
+    <!-- 底部推广卡：改成你自己的产品/小程序 -->
+    <a class="card reveal" href="#" rel="noopener">
+      <span>扶手听风 · 全过程造价与 EPC 管理</span><span>›</span>
+    </a>
+    <div class="ai-note">内容由 AI 整理自公开网络热点与行业公开信息</div>
+    <div class="sign">扶手听风</div>
+  </div>
+</section>
+
+<script>
+/* =========================================================
+   真实内容：每条均附公开来源链接与日期（来源｜链接｜日期）。
+   字段：cat 分类 / title 标题 / url 跳转链接 / img 缩略图(可选) /
+        note 行业观点 / src 来源 / date 日期
+   替换内容只需改 ITEMS 数组即可。
+   ========================================================= */
+/* BLESS：今日行业寄语，由 AI 基于当日真实内容生成；每天更新 ITEMS 时同步改写本句即可。 */
+const BLESS = "__BLESS__";
+const ITEMS = __ITEMS__;
+
+const CAT_LABEL = { policy:"造价政策", epc:"EPC管理", price:"市场价格", case:"典型案例", review:"热评" };
+const CAT_COLOR = "#2E9BFF";  /* 统一科技蓝，分类不再分色 */
+
+function favFail(img){ try{ img.style.display="none"; var ph=img.parentNode.querySelector(".ph"); if(ph) ph.style.display="flex"; }catch(e){} }
+const DOMAIN_THUMB = __DOMAIN_THUMB__;
+function fmtDate(d){ return (d.getMonth()+1) + "月" + d.getDate() + "日"; }
+const now = new Date();
+document.getElementById("dt").textContent = fmtDate(now) + " · 工程行业早报";
+document.getElementById("dd").textContent = now.getFullYear() + " 年 · 每日速览";
+document.getElementById("bless").textContent = BLESS;
+
+const listEl = document.getElementById("list");
+function render(filter){
+  const data = filter === "all" ? ITEMS : ITEMS.filter(i => i.cat === filter);
+  listEl.innerHTML = data.map((it) => {
+    const idx = ITEMS.indexOf(it) + 1;
+        const dm=(function(){try{return new URL(it.url).hostname}catch(e){return ""}})();
+    const thumb = DOMAIN_THUMB[dm] ? '<img class="fav" src="'+DOMAIN_THUMB[dm]+'" alt="" loading="lazy" onerror="favFail(this)">' : '';
+const ph = '<div class="ph" style="background:'+CAT_COLOR+'33;color:'+CAT_COLOR+'">'+CAT_LABEL[it.cat]+'</div>';
+    const meta = [it.src, it.date].filter(Boolean).join(" · ");
+    const comment = it.note
+      ? '<div class="item-comment"><p>'+it.note+'</p>'+(meta?'<span class="src">— '+meta+'</span>':'')+'</div>'
+      : '';
+    return '<div class="item reveal">'
+      + '<div class="item-thumb">'+thumb+ph+'</div>'
+      + '<div class="item-body">'
+      +   '<span class="item-idx">'+idx+'</span>'
+      +   '<span class="item-tag '+it.cat+'">'+CAT_LABEL[it.cat]+'</span>'
+      +   '<div class="item-title"><a href="'+it.url+'" target="_blank" rel="noopener">'+it.title+'</a></div>'
+      +   comment
+      + '</div></div>';
+  }).join('');
+}
+render("all");
+
+document.getElementById("catNav").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  document.querySelectorAll(".cat-nav .chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  render(chip.dataset.cat);
+});
+
+/* =========================================================
+   微信分享定制（占位）：部署时换成你自己的 appId / 后端签名接口。
+   =========================================================
+(async function(){
+  try {
+    const cfg = await fetch("/api/wechat-jsconfig/?url=" + encodeURIComponent(location.href)).then(r=>r.json());
+    wx.config({ debug:false, appId:cfg.appId, timestamp:cfg.timestamp, nonceStr:cfg.nonceStr, signature:cfg.signature, jsApiList:["updateAppMessageShareData","updateTimelineShareData"] });
+    wx.ready(function(){
+      wx.updateAppMessageShareData({ title:"工程行业早报", desc:"工程造价 · EPC管理 每日速览", link:location.href, imgUrl:"" });
+      wx.updateTimelineShareData({ title:"工程行业早报｜工程造价 · EPC管理", link:location.href, imgUrl:"" });
+    });
+  } catch(e){ /* 非微信环境静默忽略 */ }
+})();
+*/
+</script>
+</body>
+</html>

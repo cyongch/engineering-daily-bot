@@ -1,0 +1,43 @@
+name: 工程行业早报每日推送
+
+on:
+  schedule:
+    - cron: '30 22 * * *'   # UTC 22:30 = 北京时间 06:30
+  workflow_dispatch:        # 允许手动触发验证
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 抓取资讯源
+        run: node scripts/fetch.js
+      - name: 构建页面
+        run: node scripts/build.js
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

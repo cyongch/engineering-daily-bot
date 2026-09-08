@@ -102,5 +102,7 @@ const cards = items.map((it, idx) => {
 }).join('\n');
 tpl = tpl.replace(/<div id="list"><\/div>/, '<div id="list">\n' + cards + '\n    </div>');
 
+// Pages 入口必须为 index.html（根路径默认服务 index.html），同时保留 engineering-daily.html 作备份
+fs.writeFileSync(path.join(distDir, 'index.html'), tpl);
 fs.writeFileSync(path.join(distDir, 'engineering-daily.html'), tpl);
-console.log('BUILD OK items=' + items.length + ' thumbs=' + Object.values(DOMAIN_THUMB).filter(Boolean).length + ' out=dist/engineering-daily.html');
+console.log('BUILD OK items=' + items.length + ' thumbs=' + Object.values(DOMAIN_THUMB).filter(Boolean).length + ' out=dist/index.html (+engineering-daily.html)');

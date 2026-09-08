@@ -2,11 +2,13 @@
 /**
  * fetch.js —— 工程行业早报 多源采集器
  * 抓取造价/EPC 垂直资讯源，解析为 ITEMS 数组 + 当日 BLESS 寄语。
+ *
  * 设计要点：
  *   - 多源冗余：单源失败/解析空不影响其他源。
- *   - 分类限量：每类取前 N 条，控制每日总量 ~15。
+ *   - 关键词二次分类：垂直站（律所/EPC/案例）列表页多为 JS 渲染，静态不可抓；
+ *     故统一抓取"工程相关"链接，再按标题关键词归并到五类（epc>case>review>price>policy）。
  *   - 真实链接：只输出可点击原文 URL + 来源 + 日期。
- *   - note（行业观点）阶段一留空，由后续 AI 步骤补充；卡片无 note 时不显示评论块。
+ *   - note（行业观点）留空，由后续 AI 步骤补充；卡片无 note 时不显示评论块。
  */
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -54,42 +56,74 @@ function dateFromUrl(u) {
   return '';
 }
 
-// 源配置：按已实证可达性选取。后续可增 EPC/案例/热评 源。
-const SOURCES = [
-  { name: '住房城乡建设部', cat: 'policy', url: 'https://www.mohurd.gov.cn/',
-    kw: /造价|工程|EPC|清单|价格|住房|建筑|市政|标准|定额|结算/ },
-  { name: '湖北省住建厅', cat: 'policy', url: 'https://zjt.hubei.gov.cn/zfxxgk/zc/gfxwj/',
-    kw: /造价|工程|EPC|清单|价格|建筑|市政|标准|定额|结算|风险/ },
-  { name: '百年建筑网', cat: 'price', url: 'https://www.100njz.com/',
-    kw: /水泥|混凝土|砂石|价格|钢材|建材|工程|骨料|熟料|指数/ },
-  { name: '我的钢铁网', cat: 'price', url: 'https://www.mysteel.com/',
-    kw: /水泥|钢材|混凝土|砂石|价格|指数|建材|螺纹|焦炭|焦煤|铁矿/ },
-];
+// 关键词二次分类（优先级 epc > case > review > price > policy）
+function classify(t) {
+  if (/EPC|总承包|工程总承包|设计施工|联合体|发包人要求|概算|施工图预算/.test(t)) return 'epc';
+  if (/案例|判决|纠纷|裁定|败诉|胜诉|最高法|指导案例|司法解释|审计/.test(t)) return 'case';
+  if (/解读|评析|评论|观点|观察|分析|看法|随笔|研读/.test(t)) return 'review';
+  if (/水泥|混凝土|砂石|钢材|建材|价格|指数|螺纹|焦炭|焦煤|铁矿|骨料|熟料|信息价/.test(t)) return 'price';
+  return 'policy';
+}
 
-const LIMIT = { policy: 4, epc: 3, price: 4, case: 2, review: 3 };
+// 源配置：按已实证可达性选取（首页/栏目页静态可解析）
+const SOURCES = [
+  { name: '住房城乡建设部', url: 'https://www.mohurd.gov.cn/' },
+  { name: '湖北省住建厅', url: 'https://zjt.hubei.gov.cn/zfxxgk/zc/gfxwj/' },
+  { name: '百年建筑网', url: 'https://www.100njz.com/' },
+  { name: '我的钢铁网', url: 'https://www.mysteel.com/' },
+];
+const KW = /造价|工程|EPC|清单|价格|建筑|市政|标准|定额|结算|水泥|混凝土|砂石|钢材|建材|指数|螺纹|总承包|案例|判决|纠纷|审计|司法解释/;
+
+// 每类上限（每日总量 ~16）
+const LIMIT = { policy: 5, epc: 3, price: 4, case: 2, review: 2 };
 const items = [];
 const usedTitles = new Set();
+const cnt = {};
 const today = new Date().toISOString().slice(0, 10);
 
 for (const s of SOURCES) {
   const html = fetchHtml(s.url);
   if (!html) { console.log('FAIL', s.name); continue; }
-  const arr = extract(s.url, html, s.kw).slice(0, 10);
-  let n = 0;
+  const arr = extract(s.url, html, KW).slice(0, 25);
+  let added = 0;
   for (const a of arr) {
-    if (n >= LIMIT[s.cat]) break;
     if (usedTitles.has(a.title)) continue;
+    const cat = classify(a.title);
+    if ((cnt[cat] || 0) >= LIMIT[cat]) continue;
     usedTitles.add(a.title);
+    cnt[cat] = (cnt[cat] || 0) + 1;
     const date = dateFromUrl(a.url) || today;
-    items.push({ cat: s.cat, title: a.title, url: a.url, src: s.name, date: date, note: '' });
-    n++;
+    items.push({ cat: cat, title: a.title, url: a.url, src: s.name, date: date, note: '' });
+    added++;
   }
-  console.log(s.name, '->', n);
+  console.log(s.name, '->', added, '| 分类', JSON.stringify(cnt));
 }
 
-// BLESS：统计驱动，与当日真实内容联动
-const cnt = {};
-items.forEach(i => { cnt[i.cat] = (cnt[i.cat] || 0) + 1; });
+// 常驻精选池：EPC/案例/热评 垂直站列表页多为 JS 渲染不可抓，
+// 改用已验证可达的真实文章 URL 作常驻源（每日校验可达性，不可达跳过）。
+// 说明：此为阶段方案，内容非每日更新，但真实、可链、稳定覆盖五类。
+const POOLS = [
+  { cat: 'epc', title: '北京工程总承包迈入 EPC 标准文本时代', url: 'https://www.junhe.com/legal-updates/3094', src: '君合律师事务所', date: '2026-08-01' },
+  { cat: 'epc', title: 'EPC 合同风险分担、价格调整与暗标评审机制', url: 'https://www.dtlawyers.com.cn/page/research/detail.html?id=7090&lang=zh', src: '北京市道可特律所', date: '2026-08' },
+  { cat: 'epc', title: '佛山发布园林绿化工程总承包(EPC)合同示范文本2026', url: 'https://www.foshan.gov.cn/gzjg/fssggzyjyzx/zcfg/zcfg/content/post_7203397.html', src: '佛山市城管局', date: '2026-07-16' },
+  { cat: 'case', title: '最高法发布六件建工纠纷典型案例', url: 'https://www.court.gov.cn/zixun/xiangqing/504211.html', src: '最高人民法院', date: '2026-06-29' },
+  { cat: 'case', title: '建工解释二第十三条：审计结算条款的适用边界', url: 'https://jianweicd.com/index.php?c=show&id=890', src: '上海建纬(成都)律所', date: '2026' },
+  { cat: 'case', title: '《建工解释二》逐条解读：二十三条体系化阐释', url: 'https://shanghai.dacheng.com/Party_2/1544.html', src: '北京大成(上海)律所', date: '2026' },
+  { cat: 'review', title: '袁华之：从条文解读到实践回应——《建工解释二》观察', url: 'http://jlzy.e-court.gov.cn/article/detail/2026/07/id/9416202.shtml', src: '吉林中院 / 袁华之', date: '2026-07' },
+  { cat: 'review', title: '湖北审计实务：人工材料价差哪些能调、哪些必扣', url: 'https://www.toutiao.com/a7679819422882513449', src: '今日头条 · 基建审计实务', date: '2026-08' },
+  { cat: 'review', title: '望衡法评：情势变更与商业风险避坑指南', url: 'https://wanghenglaw.com/index.php?c=show&id=198', src: '北京望衡律师事务所', date: '2026' },
+  { cat: 'review', title: '2024 版清单计价风险每日学：无限风险条款为何无效', url: 'https://www.toutiao.com/article/7680810110083416595', src: '今日头条 · 基建无处不在', date: '2026-09' },
+];
+for (const p of POOLS) {
+  if ((cnt[p.cat] || 0) >= LIMIT[p.cat]) continue;
+  if (usedTitles.has(p.title)) continue;
+  const ph = fetchHtml(p.url);
+  if (!ph || ph.length < 200) { console.log('POOL_SKIP', p.cat, p.url); continue; }
+  usedTitles.add(p.title);
+  cnt[p.cat] = (cnt[p.cat] || 0) + 1;
+  items.push({ cat: p.cat, title: p.title, url: p.url, src: p.src, date: p.date, note: '' });
+}
+
 const LABELS = { policy: '造价政策', epc: 'EPC管理', price: '市场价格', case: '典型案例', review: '热评' };
 const parts = Object.keys(cnt).map(k => LABELS[k] + cnt[k] + '条').join('、');
 const bless = parts

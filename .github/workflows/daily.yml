@@ -24,6 +24,12 @@ jobs:
           node-version: '22'
       - name: 抓取资讯源
         run: node scripts/fetch.js
+      - name: 生成内容简述
+        # 需配置 Secrets.ZHIPU_API_KEY（智谱 glm-4-flash）；
+        # 未配置时脚本自动跳过，早报维持无简述状态（实测规则回退仅 6/18 可用，不启用）
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: node scripts/summarize.js
       - name: 构建页面
         run: node scripts/build.js
       - name: 上传 Pages 产物

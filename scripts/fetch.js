@@ -82,11 +82,18 @@ const KW = /造价|工程|EPC|基建|市政|定额|结算|招标|投标|中标|�
 const SOURCES = [
   // 国家住建部
   { name: '住房城乡建设部', url: 'https://www.mohurd.gov.cn/' },
-  // 煤炭/建筑行业源（经实测筛选；此类站点多为 JS 壳，以下为确有工程实务内容者）
+  // 煤炭/建筑行业源（经实测四轮筛选；此类站点多为 JS 壳，以下为确有工程实务内容者）
   // 排位提前：置于数组末尾时配额会被省住建厅占满，导致持续出 0 条（实测煤炭协会 40 候选出 0）
+  // 注意：山东省造价类站点请勿用 sdzjxh.com（实为职业技术教育学会，非造价）；
+  //       hnzjxh.com 疑似已被抢注（返回 8MB 无关内容），均已排除。
+  { name: '浙江省建设工程造价管理协会', url: 'http://www.zjzjxh.com/' },
+  { name: '四川省造价工程师协会', url: 'http://www.sccea.net/' },
   { name: '中国煤炭加工利用协会', url: 'https://www.ccpua.org/' },
   { name: '山西省能源局',   url: 'https://nyj.shanxi.gov.cn/' },
+  { name: '贵州省能源局',   url: 'https://nyj.guizhou.gov.cn/' },
+  { name: '山东省能源局',   url: 'http://nyj.shandong.gov.cn/' },
   { name: '国家能源局',    url: 'https://www.nea.gov.cn/' },
+  { name: '中国中煤集团',   url: 'https://www.chinacoal.com/' },
   { name: '中国煤炭地质总局', url: 'https://www.ccgc.cn/' },
   { name: '中国建筑材料联合会', url: 'https://www.cbmf.org/' },
   // 省级住建厅（政策/定额/招投标管理，全国冗余）
@@ -119,10 +126,10 @@ const PER_SOURCE_MAX = 6;
 const URL_BLACKLIST = /(taskcode|guidance|bmfwtest|bmfw\.|\/bsdt\/|zwfw\.|login| Login|注册页)/i;
 const TITLE_BLACKLIST = /^建筑业企业资质核准|信息系统$|办事指南$|在线办理$|查询系统$|领导活动$|领导简历$/;
 // 协会/机构动态过滤：赴访调研、座谈慰问、党建工会等无造价信息量的动态不进早报
-const DYNAMIC_NOISE = /(赴|到访|来访|莅临|走访|看望|慰问){1}[^，。]{0,14}(座谈|交流|调研|考察|参观|指导|洽谈)|调研指导|莅临.{0,8}指导|走访办|党建|主题教育|党日|工会|团委|妇联|换届|年会召开|慰问信|倡议书|理事会|届中调整|人选公示|负责人人选|理事候选人|表决|表彰|评选结果|发布会|更名暨|品牌发布|签约仪式|致辞中表示|开幕致辞/;
-const items = [];
+const DYNAMIC_NOISE = /(赴|到访|来访|莅临|走访|看望|慰问){1}[^，。]{0,14}(座谈|交流|调研|考察|参观|指导|洽谈)|调研指导|莅临.{0,8}指导|走访办|党建|主题教育|党日|工会|团委|妇联|换届|年会召开|慰问信|倡议书|理事会|届中调整|人选公示|负责人人选|理事候选人|表决|表彰|评选结果|发布会|更名暨|品牌发布|签约仪式|致辞中表示|开幕致辞|招聘|公开招聘|招录|准考证|成绩查询|证书领取|竞赛|文体|运动会/;
+let items = [];
 const usedTitles = new Set();
-const cnt = {};
+let cnt = {};
 // GitHub Actions runner 时区为 UTC。cron '30 22' UTC = 北京次日 06:30，
 // 此时 UTC 日期仍是"前一天"，直接 toISOString() 会让早报日期比北京晚 1 天。
 // 故 +8h 后再取日期，确保与北京时间一致。
@@ -189,6 +196,36 @@ for (const p of POOLS) {
   cnt[p.cat] = (cnt[p.cat] || 0) + 1;
   items.push({ cat: p.cat, title: p.title, url: p.url, src: p.src, date: p.date, note: '' });
 }
+
+// ---- 阶段 3：政策占比硬约束（≤20%，不依赖下游 summarize）----
+// 软配额 LIMIT 每日抓取波动会失效；且 summarize.js 的裁剪依赖 note 过滤、无 ZHIPU_API_KEY 时
+// 可能不触发，故在 fetch 阶段即锁定约束：P ≤ 0.25·O（O = 非政策条数）⟺ P/(P+O) ≤ 0.2。
+// 按来源多样性优先裁剪（每源先保 1 条），避免新接入的煤炭/建筑源因数组排位靠后被优先裁掉。
+{
+  const O = items.filter(x => x.cat !== 'policy').length;
+  const maxP = Math.floor(O * 0.2 / (1 - 0.2));
+  const picked = [], seen = new Set(); let pc = 0;
+  for (const x of items) {
+    if (x.cat !== 'policy' || pc >= maxP) continue;
+    if (seen.has(x.src)) continue;
+    seen.add(x.src); picked.push(x); pc++;
+  }
+  const ps = new Set(picked);
+  if (pc < maxP) {
+    for (const x of items) {
+      if (x.cat !== 'policy' || pc >= maxP || ps.has(x)) continue;
+      picked.push(x); ps.add(x); pc++;
+    }
+  }
+  const trimmed = items.filter(x => x.cat !== 'policy' || ps.has(x));
+  if (trimmed.length !== items.length) {
+    console.log('POLICY_CAP: 剔除', items.length - trimmed.length, '条政策（≤20%，上限', maxP, '条）');
+  }
+  items = trimmed;
+}
+// 重算 cnt 供寄语使用
+cnt = {};
+for (const it of items) cnt[it.cat] = (cnt[it.cat] || 0) + 1;
 
 const LABELS = { policy: '造价政策', epc: 'EPC管理', price: '市场价格', case: '典型案例', review: '热评' };
 const parts = Object.keys(cnt).map(k => LABELS[k] + cnt[k] + '条').join('、');

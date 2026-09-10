@@ -161,12 +161,24 @@ async function aiNote(it, body, key) {
   const MAX_POLICY_RATIO = 0.2;
   const others = kept.filter(x => x.cat !== 'policy').length;
   const maxPolicy = Math.floor(others * MAX_POLICY_RATIO / (1 - MAX_POLICY_RATIO));
+  // 裁剪策略：按来源多样性优先（每源先保 1 条）。
+  // 若按原顺序截取，新接入的煤炭/建筑源永远排在末尾、必被优先裁掉。
   let pCount = 0;
-  const trimmed = [];
+  const picked = [];
+  const seenSrc = new Set();
   for (const x of kept) {
-    if (x.cat !== 'policy') { trimmed.push(x); continue; }
-    if (pCount < maxPolicy) { trimmed.push(x); pCount++; }
+    if (x.cat !== 'policy' || pCount >= maxPolicy) continue;
+    if (seenSrc.has(x.src)) continue;
+    seenSrc.add(x.src); picked.push(x); pCount++;
   }
+  const pickSet = new Set(picked);
+  if (pCount < maxPolicy) {
+    for (const x of kept) {
+      if (x.cat !== 'policy' || pCount >= maxPolicy || pickSet.has(x)) continue;
+      picked.push(x); pickSet.add(x); pCount++;
+    }
+  }
+  const trimmed = kept.filter(x => x.cat !== 'policy' || pickSet.has(x));
   if (trimmed.length !== kept.length) {
     console.log('政策占比约束：剔除 ' + (kept.length - trimmed.length) + ' 条政策（目标 ≤20%，上限 ' + maxPolicy + ' 条）');
   }

@@ -75,13 +75,21 @@ function classify(t) {
   return 'policy';
 }
 
-// 关键词过滤（宽口径，覆盖政策/招采/价格/工程硬信号；实测可精准命中各验证源）
-const KW = /造价|工程|EPC|基建|市政|定额|结算|招标|投标|中标|建材|水泥|混凝土|砂石|钢材|装配式|智能建造|全过程咨询|工程咨询|工程造价|计价|工程量清单|施工|总承包|发包|承包|审计|司法解释|标准|规范/;
+// 关键词过滤（宽口径）+ 煤炭类扩充（矿井/矿区/井巷/矿建/煤化工）
+const KW = /造价|工程|EPC|基建|市政|定额|结算|招标|投标|中标|建材|水泥|混凝土|砂石|钢材|装配式|智能建造|全过程咨询|工程咨询|工程造价|计价|工程量清单|施工|总承包|发包|承包|审计|司法解释|标准|规范|煤矿|煤炭|矿山|矿区|矿井|井巷|矿建|煤化工/;
 
-// 源配置：全部经 _probe2.js 实测"静态可抓 + 工程相关 + 稳定"后入选
+// 源配置：全部经实测"静态可抓 + 工程相关 + 稳定"后入选
 const SOURCES = [
-  // 国家 + 省级住建厅（政策/定额/招投标管理，全国冗余）
+  // 国家住建部
   { name: '住房城乡建设部', url: 'https://www.mohurd.gov.cn/' },
+  // 煤炭/建筑行业源（经实测筛选；此类站点多为 JS 壳，以下为确有工程实务内容者）
+  // 排位提前：置于数组末尾时配额会被省住建厅占满，导致持续出 0 条（实测煤炭协会 40 候选出 0）
+  { name: '中国煤炭加工利用协会', url: 'https://www.ccpua.org/' },
+  { name: '山西省能源局',   url: 'https://nyj.shanxi.gov.cn/' },
+  { name: '国家能源局',    url: 'https://www.nea.gov.cn/' },
+  { name: '中国煤炭地质总局', url: 'https://www.ccgc.cn/' },
+  { name: '中国建筑材料联合会', url: 'https://www.cbmf.org/' },
+  // 省级住建厅（政策/定额/招投标管理，全国冗余）
   { name: '内蒙古住建厅', url: 'http://zjt.nmg.gov.cn/' },
   { name: '新疆住建厅',   url: 'https://zjt.xinjiang.gov.cn/' },
   { name: '陕西住建厅',   url: 'https://js.shaanxi.gov.cn/' },
@@ -100,15 +108,18 @@ const SOURCES = [
 ];
 
 // 每类上限（宽进：先多产候选，由 summarize.js 剔除无正文条目后自然收敛）
-// 由 summarize.js 按 0.25*非政策数 硬裁剪保证 ≤20%，此处留足候选供挑选
-const LIMIT = { policy: 6, epc: 5, price: 5, case: 2, review: 6 };
+// 候选配额放宽：新增煤炭/建筑源排位靠后，配额过紧会让它们全部出 0 条（实测煤炭协会 40 候选出 0）。
+// policy 最终仍由 summarize.js 按比例裁剪到 ≤20%，此处放宽只为扩大挑选池、保证来源多元。
+const LIMIT = { policy: 10, epc: 6, price: 6, case: 3, review: 7 };
 // 单源贡献上限：兼顾来源多样性（实测新疆住建厅单源曾占 9/18 条）
 const PER_SOURCE_MAX = 6;
 
 // 低价值页面黑名单：此类页面天生无正文或需登录（办事指南/政务系统/项目详情页），
 // 进早报后无法生成简述，故在抓取阶段就剔除，避免占用卡片位。
 const URL_BLACKLIST = /(taskcode|guidance|bmfwtest|bmfw\.|\/bsdt\/|zwfw\.|login| Login|注册页)/i;
-const TITLE_BLACKLIST = /^建筑业企业资质核准|信息系统$|办事指南$|在线办理$|查询系统$/;
+const TITLE_BLACKLIST = /^建筑业企业资质核准|信息系统$|办事指南$|在线办理$|查询系统$|领导活动$|领导简历$/;
+// 协会/机构动态过滤：赴访调研、座谈慰问、党建工会等无造价信息量的动态不进早报
+const DYNAMIC_NOISE = /(赴|到访|来访|莅临|走访|看望|慰问){1}[^，。]{0,14}(座谈|交流|调研|考察|参观|指导|洽谈)|调研指导|莅临.{0,8}指导|走访办|党建|主题教育|党日|工会|团委|妇联|换届|年会召开|慰问信|倡议书|理事会|届中调整|人选公示|负责人人选|理事候选人|表决|表彰|评选结果|发布会|更名暨|品牌发布|签约仪式|致辞中表示|开幕致辞/;
 const items = [];
 const usedTitles = new Set();
 const cnt = {};
@@ -117,27 +128,41 @@ const cnt = {};
 // 故 +8h 后再取日期，确保与北京时间一致。
 const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
+// ---- 阶段 1：收集各源候选（保留过滤后的候选池）----
+const pools = [];
 for (const s of SOURCES) {
   const html = fetchHtml(s.url);
   if (!html) { console.log('FAIL', s.name); continue; }
-  const arr = extract(s.url, html, s.kw || KW).slice(0, 40);
-  let added = 0;
-  for (const a of arr) {
-    // 单源上限：防止某富源（如新疆住建厅）一次占满配额导致来源单一
-    if (added >= PER_SOURCE_MAX) break;
-    // 低价值页面（无正文/需登录）不进早报，把卡片位让给有实质内容的条目
-    if (URL_BLACKLIST.test(a.url) || TITLE_BLACKLIST.test(a.title)) continue;
+  const arr = extract(s.url, html, s.kw || KW)
+    .filter(a => !URL_BLACKLIST.test(a.url) && !TITLE_BLACKLIST.test(a.title) && !DYNAMIC_NOISE.test(a.title))
+    .slice(0, 40);
+  pools.push({ name: s.name, list: arr, added: 0 });
+}
+
+// ---- 阶段 2：公平轮询填充 ----
+// 不能按源顺序"先到先得"：排在数组后面的源会被前面源占满配额而永远出 0 条
+// （实测新增的煤炭/建筑源因此全部为 0）。改为每轮各源取 1 条，兼顾来源多样性。
+let round = 0;
+while (round < 60) {
+  let progressed = false;
+  for (const p of pools) {
+    if (round >= p.list.length) continue;
+    if (p.added >= PER_SOURCE_MAX) continue;           // 单源上限，防富源垄断
+    progressed = true;
+    const a = p.list[round];
     if (usedTitles.has(a.title)) continue;
     const cat = classify(a.title);
     if ((cnt[cat] || 0) >= LIMIT[cat]) continue;
     usedTitles.add(a.title);
     cnt[cat] = (cnt[cat] || 0) + 1;
+    p.added++;
     const date = dateFromUrl(a.url) || today;
-    items.push({ cat: cat, title: a.title, url: a.url, src: s.name, date: date, note: '' });
-    added++;
+    items.push({ cat: cat, title: a.title, url: a.url, src: p.name, date: date, note: '' });
   }
-  console.log(s.name, '->', added, '| 分类', JSON.stringify(cnt));
+  if (!progressed) break;
+  round++;
 }
+pools.forEach(p => { if (p.added) console.log(p.name, '->', p.added); });
 
 // 常驻精选池（兜底）：EPC/案例/热评 垂直站列表页多为 JS 渲染不可抓，
 // 用已验证可达的真实文章 URL 作"分类兜底"——仅当日抓该分类为 0 时补 1 条，

@@ -153,7 +153,25 @@ async function aiNote(it, body, key) {
 
   // 按用户要求：无正文/拿不到简述的条目不出现在卡片中，位置由其他有内容的条目替补。
   // fetch.js 已"宽进"产出多余候选，此处收敛后即为最终展示条目。
-  const kept = items.filter(x => x.note && x.note.length >= 8);
+  let kept = items.filter(x => x.note && x.note.length >= 8);
+
+  // 硬约束：造价政策占比必须 ≤20%。
+  // 软配额（LIMIT）会因每日抓取波动失效，故按比例裁剪兜底：
+  //   P/(P+O) ≤ 0.2  ⟺  P ≤ 0.25·O（O = 非政策类条数）
+  const MAX_POLICY_RATIO = 0.2;
+  const others = kept.filter(x => x.cat !== 'policy').length;
+  const maxPolicy = Math.floor(others * MAX_POLICY_RATIO / (1 - MAX_POLICY_RATIO));
+  let pCount = 0;
+  const trimmed = [];
+  for (const x of kept) {
+    if (x.cat !== 'policy') { trimmed.push(x); continue; }
+    if (pCount < maxPolicy) { trimmed.push(x); pCount++; }
+  }
+  if (trimmed.length !== kept.length) {
+    console.log('政策占比约束：剔除 ' + (kept.length - trimmed.length) + ' 条政策（目标 ≤20%，上限 ' + maxPolicy + ' 条）');
+  }
+  kept = trimmed;
+
   const dropped = items.length - kept.length;
   if (dropped) {
     console.log('--- 剔除无正文条目 ' + dropped + ' 条 ---');

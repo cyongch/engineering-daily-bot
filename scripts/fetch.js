@@ -68,7 +68,9 @@ function dateFromUrl(u) {
 function classify(t) {
   if (/EPC|总承包|工程总承包|设计施工|联合体|发包人要求|概算|施工图预算|招标|投标|中标|发包|承包|基建|城市更新|拟在建/.test(t)) return 'epc';
   if (/案例|判决|纠纷|裁定|败诉|胜诉|最高法|指导案例|司法解释|审计/.test(t)) return 'case';
-  if (/解读|评析|评论|观点|观察|分析|看法|随笔|研读/.test(t)) return 'review';
+  // review 识别词扩充：政策解读/解析/透视类文章归属"热评"，而非"造价政策"。
+  // 这是提升热评比重的主要供给杠杆（单纯改配额无效——源里没有解读文章，配额再高也填不满）。
+  if (/解读|评析|评论|观点|观察|分析|看法|随笔|研读|解析|详解|探析|透视|梳理|述评|问答|焦点/.test(t)) return 'review';
   if (/水泥|混凝土|砂石|钢材|建材|价格|指数|螺纹|焦炭|焦煤|铁矿|骨料|熟料|信息价/.test(t)) return 'price';
   return 'policy';
 }
@@ -97,8 +99,9 @@ const SOURCES = [
   { name: '我的钢铁网',   url: 'https://www.mysteel.com/' },
 ];
 
-// 每类上限（宽进：先多产候选，由 summarize.js 剔除无正文条目后自然收敛到 ~18 条）
-const LIMIT = { policy: 9, epc: 6, price: 7, case: 3, review: 3 };
+// 每类上限（宽进：先多产候选，由 summarize.js 剔除无正文条目后自然收敛）
+// 由 summarize.js 按 0.25*非政策数 硬裁剪保证 ≤20%，此处留足候选供挑选
+const LIMIT = { policy: 6, epc: 5, price: 5, case: 2, review: 6 };
 // 单源贡献上限：兼顾来源多样性（实测新疆住建厅单源曾占 9/18 条）
 const PER_SOURCE_MAX = 6;
 

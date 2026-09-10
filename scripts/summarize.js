@@ -150,7 +150,16 @@ async function aiNote(it, body, key) {
     }
     it.note = note;
   }
-  fs.writeFileSync(itemsPath, JSON.stringify(items), 'utf8');
-  console.log('=== 汇总 === 总数', items.length, '| AI', aiOk, '| 回退', fbOk, '| 缺失', miss,
-    '| 覆盖率', (((aiOk + fbOk) / items.length) * 100).toFixed(0) + '%');
+
+  // 按用户要求：无正文/拿不到简述的条目不出现在卡片中，位置由其他有内容的条目替补。
+  // fetch.js 已"宽进"产出多余候选，此处收敛后即为最终展示条目。
+  const kept = items.filter(x => x.note && x.note.length >= 8);
+  const dropped = items.length - kept.length;
+  if (dropped) {
+    console.log('--- 剔除无正文条目 ' + dropped + ' 条 ---');
+    items.filter(x => !x.note || x.note.length < 8).forEach(x => console.log('   [剔除]', x.src, '|', x.title.slice(0, 30)));
+  }
+  fs.writeFileSync(itemsPath, JSON.stringify(kept), 'utf8');
+  console.log('=== 汇总 === 候选', items.length, '| 保留', kept.length, '(AI', aiOk, '/规则', fbOk, ') | 剔除',
+    dropped, '| 简述覆盖率', ((aiOk + fbOk) / items.length * 100).toFixed(0) + '%');
 })();

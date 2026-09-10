@@ -97,10 +97,15 @@ const SOURCES = [
   { name: '我的钢铁网',   url: 'https://www.mysteel.com/' },
 ];
 
-// 每类上限（每日总量 ~19，富源下各类稳定出条）
-const LIMIT = { policy: 6, epc: 4, price: 5, case: 2, review: 2 };
+// 每类上限（宽进：先多产候选，由 summarize.js 剔除无正文条目后自然收敛到 ~18 条）
+const LIMIT = { policy: 9, epc: 6, price: 7, case: 3, review: 3 };
 // 单源贡献上限：兼顾来源多样性（实测新疆住建厅单源曾占 9/18 条）
-const PER_SOURCE_MAX = 4;
+const PER_SOURCE_MAX = 6;
+
+// 低价值页面黑名单：此类页面天生无正文或需登录（办事指南/政务系统/项目详情页），
+// 进早报后无法生成简述，故在抓取阶段就剔除，避免占用卡片位。
+const URL_BLACKLIST = /(taskcode|guidance|bmfwtest|bmfw\.|\/bsdt\/|zwfw\.|login| Login|注册页)/i;
+const TITLE_BLACKLIST = /^建筑业企业资质核准|信息系统$|办事指南$|在线办理$|查询系统$/;
 const items = [];
 const usedTitles = new Set();
 const cnt = {};
@@ -112,11 +117,13 @@ const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 for (const s of SOURCES) {
   const html = fetchHtml(s.url);
   if (!html) { console.log('FAIL', s.name); continue; }
-  const arr = extract(s.url, html, s.kw || KW).slice(0, 25);
+  const arr = extract(s.url, html, s.kw || KW).slice(0, 40);
   let added = 0;
   for (const a of arr) {
     // 单源上限：防止某富源（如新疆住建厅）一次占满配额导致来源单一
     if (added >= PER_SOURCE_MAX) break;
+    // 低价值页面（无正文/需登录）不进早报，把卡片位让给有实质内容的条目
+    if (URL_BLACKLIST.test(a.url) || TITLE_BLACKLIST.test(a.title)) continue;
     if (usedTitles.has(a.title)) continue;
     const cat = classify(a.title);
     if ((cnt[cat] || 0) >= LIMIT[cat]) continue;

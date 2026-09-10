@@ -99,10 +99,15 @@ const SOURCES = [
 
 // 每类上限（每日总量 ~19，富源下各类稳定出条）
 const LIMIT = { policy: 6, epc: 4, price: 5, case: 2, review: 2 };
+// 单源贡献上限：兼顾来源多样性（实测新疆住建厅单源曾占 9/18 条）
+const PER_SOURCE_MAX = 4;
 const items = [];
 const usedTitles = new Set();
 const cnt = {};
-const today = new Date().toISOString().slice(0, 10);
+// GitHub Actions runner 时区为 UTC。cron '30 22' UTC = 北京次日 06:30，
+// 此时 UTC 日期仍是"前一天"，直接 toISOString() 会让早报日期比北京晚 1 天。
+// 故 +8h 后再取日期，确保与北京时间一致。
+const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
 for (const s of SOURCES) {
   const html = fetchHtml(s.url);
@@ -110,6 +115,8 @@ for (const s of SOURCES) {
   const arr = extract(s.url, html, s.kw || KW).slice(0, 25);
   let added = 0;
   for (const a of arr) {
+    // 单源上限：防止某富源（如新疆住建厅）一次占满配额导致来源单一
+    if (added >= PER_SOURCE_MAX) break;
     if (usedTitles.has(a.title)) continue;
     const cat = classify(a.title);
     if ((cnt[cat] || 0) >= LIMIT[cat]) continue;

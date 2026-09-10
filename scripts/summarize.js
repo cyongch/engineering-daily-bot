@@ -56,17 +56,51 @@ function pickBest(ps) {
   return scored[0] ? scored[0].t : '';
 }
 
-// 规则回退（仅作单条兜底）：过滤标题重复与纯条款原文，避免无信息增量的"伪简述"
-function fallbackNote(ps, title) {
+// ① 价格/数据类：标题自含指数值，直接结构化成句（此类页面正文为 JS 图表，抓不到）
+function notePrice(title) {
+  const m = title.match(/(.+?指数)\s*([\d.]+)\s*([+-][\d.]+)?\s*([+-]?[\d.]+%)?/);
+  if (!m) return '';
+  const name = m[1].trim(), val = m[2], chg = m[3], pct = m[4];
+  if (chg) {
+    const dir = chg[0] === '-' ? '下跌' : '上涨';
+    return name + '报 ' + val + '，环比' + dir + Math.abs(parseFloat(chg)) + (pct ? '（' + pct + '）' : '') + '。';
+  }
+  return name + '报 ' + val + (pct ? '（' + pct + '）' : '') + '，本期环比持平。';
+}
+
+// ② 法规/部令类：从正文提取「令号 + 施行日期 + 立法目的」，三者组句
+//    （此前把"第一条 为了…"当套话误杀，实为高价值结构化信息）
+function noteRegulation(h, title) {
+  if (!/规定|办法|条例|细则|导则|标准/.test(title)) return '';
+  const parts = [];
+  const dateM = h.match(/自\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日起?施行/);
+  const noM = h.match(/(?:住房和城乡建设部令|住建部令|自治区人民政府令|人民政府令)?\s*第?\s*([0-9]{1,4})\s*号/);
+  if (noM) parts.push('令第' + noM[1] + '号');
+  if (dateM) parts.push('自' + dateM[1] + '年' + dateM[2] + '月' + dateM[3] + '日起施行');
+  const aimM = h.match(/第[一1]条\s*为[了]?([^。]{12,70})。/);
+  if (aimM) parts.push('旨在' + aimM[1].replace(/^了?/, '').trim());
+  if (!parts.length) return '';
+  let s = parts.join('；');
+  if (s.length < 12) return '';
+  s = s.length > 95 ? s.slice(0, 95) : s;
+  return s + (/[。；]$/.test(s) ? '' : '。');
+}
+
+// ③ 通用正文类：取信息量最高的段落
+function noteGeneric(ps, title) {
   const t = pickBest(ps);
   if (!t) return '';
   const norm = s => s.replace(/[《》〈〉（）()\s、，。；：""'']/g, '');
-  if (norm(t).indexOf(norm(title).slice(0, 12)) === 0) return '';
-  if (/^第[一二三四五六七八九十百]+条/.test(t)) return '';
+  // 仅当与标题「几乎完全相同」才丢弃（此前按前12字判定，误杀过多）
+  if (norm(t) === norm(title) || (norm(title) && norm(t).indexOf(norm(title)) === 0 && t.length - title.length < 12)) return '';
   let s = t.length > 95 ? t.slice(0, 95) : t;
   const last = Math.max(s.lastIndexOf('。'), s.lastIndexOf('；'));
   if (last > 40) s = s.slice(0, last + 1);
   return s;
+}
+
+function fallbackNote(ps, title, h) {
+  return notePrice(title) || noteRegulation(h, title) || noteGeneric(ps, title);
 }
 
 // ---- AI 提炼（Node 原生 fetch，跨平台且无临时文件）----
@@ -95,23 +129,24 @@ async function aiNote(it, body, key) {
 
 (async function main() {
   const KEY = (process.env.ZHIPU_API_KEY || '').trim();
-  if (!KEY) {
-    console.log('SKIP 未配置 ZHIPU_API_KEY，跳过简述生成（规则回退实测仅 6/18 可用，宁缺毋滥）');
-    return;
-  }
-  console.log('模式：AI 提炼（智谱 glm-4-flash）');
+  console.log('模式：', KEY ? 'AI 提炼优先（智谱 glm-4-flash）+ 规则兜底' : '仅规则模式（未配 ZHIPU_API_KEY）');
 
   let aiOk = 0, fbOk = 0, miss = 0;
   for (const it of items) {
     const h = fetchHtml(it.url);
-    if (!h || h.length < 500) { miss++; console.log('[无正文]', it.title.slice(0, 28)); it.note = ''; continue; }
+    if (!h || h.length < 500) {
+      // 页面拿不到时仍尝试价格类模板（标题自含数据）
+      const t = notePrice(it.title);
+      if (t) { fbOk++; it.note = t; console.log('[规则]', it.src, '|', t.slice(0, 50)); continue; }
+      miss++; console.log('[缺失]', it.src, '|', it.title.slice(0, 26)); it.note = ''; continue;
+    }
     const ps = parseParagraphs(h);
-    let note = await aiNote(it, ps.join(' '), KEY);
-    if (note) { aiOk++; console.log('[AI]  ', note.slice(0, 56)); }
+    let note = KEY ? await aiNote(it, ps.join(' '), KEY) : '';
+    if (note) { aiOk++; console.log('[AI]  ', it.src, '|', note.slice(0, 50)); }
     else {
-      note = fallbackNote(ps, it.title);
-      if (note) { fbOk++; console.log('[回退]', note.slice(0, 56)); }
-      else { miss++; console.log('[缺失]', it.title.slice(0, 28)); }
+      note = fallbackNote(ps, it.title, h);
+      if (note) { fbOk++; console.log('[规则]', it.src, '|', note.slice(0, 50)); }
+      else { miss++; console.log('[缺失]', it.src, '|', it.title.slice(0, 26)); }
     }
     it.note = note;
   }

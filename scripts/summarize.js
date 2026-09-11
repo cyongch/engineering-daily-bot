@@ -99,8 +99,28 @@ function noteGeneric(ps, title) {
   return s;
 }
 
-function fallbackNote(ps, title, h) {
-  return notePrice(title) || noteRegulation(h, title) || noteGeneric(ps, title);
+// ④ 兜底模板：即使页面无正文（JS 渲染/抓不到）也保证每张卡都有要点简述
+function noteCatchAll(it) {
+  let t = String(it.title || '').replace(/\s+/g, ' ').trim();
+  t = t.replace(/\s*20\d{2}[-/.]\d{1,2}([-/.]\d{1,2})?\s*$/, '').trim();  // 去尾部日期
+  const LEAD = { policy: '政策要点', epc: '项目动态', price: '市场行情', case: '案例要点', review: '行业观察' };
+  const lead = LEAD[it.cat] || '行业要点';
+  const core = t.length > 64 ? t.slice(0, 64) + '…' : t;
+  const tail = [it.src, it.date].filter(Boolean).join(' · ');
+  return '【' + lead + '】' + core + '。' + (tail ? '（' + tail + '）' : '') + '详见原文。';
+}
+
+function fallbackNote(ps, it, h) {
+  return notePrice(it.title) || noteRegulation(h, it.title) || noteGeneric(ps, it.title) || noteCatchAll(it);
+}
+
+// 正文质量护栏：若抓到的是页脚/导航/党建/HTML 实体垃圾，则改用兜底模板（保证简述可用）
+const NOTE_JUNK = /(技术支持|服务电话|QQ：|版权所有|版权|ICP备|公安备案|协会简介|协会章程|组织架构|组织机构|领导成员|常务理事|理事名单|监事会|会员之窗|友情链接|网站地图|联系我们|关于我们|二十大|红心连新|应知应会|观影|长征|人才评价|通讯录)/;
+function guardNote(it, note) {
+  const s = String(note || '');
+  const plain = s.replace(/&[a-z]+;|&#\d+;/gi, '').replace(/[\s、，。；：""''（）()《》〈〉·—\-]/g, '');
+  if (!s || NOTE_JUNK.test(s) || plain.length < 8) return noteCatchAll(it);
+  return s;
 }
 
 // ---- AI 提炼（Node 原生 fetch，跨平台且无临时文件）----
@@ -135,25 +155,26 @@ async function aiNote(it, body, key) {
   for (const it of items) {
     const h = fetchHtml(it.url);
     if (!h || h.length < 500) {
-      // 页面拿不到时仍尝试价格类模板（标题自含数据）
-      const t = notePrice(it.title);
-      if (t) { fbOk++; it.note = t; console.log('[规则]', it.src, '|', t.slice(0, 50)); continue; }
-      miss++; console.log('[缺失]', it.src, '|', it.title.slice(0, 26)); it.note = ''; continue;
+      // 页面拿不到时：价格类按标题结构化，否则用兜底模板（保证每张卡都有简述）
+      const isPrice = !!notePrice(it.title);
+      it.note = notePrice(it.title) || noteCatchAll(it);
+      fbOk++;
+      console.log(isPrice ? '[规则]' : '[兜底]', it.src, '|', it.note.slice(0, 50));
+      continue;
     }
     const ps = parseParagraphs(h);
     let note = KEY ? await aiNote(it, ps.join(' '), KEY) : '';
     if (note) { aiOk++; console.log('[AI]  ', it.src, '|', note.slice(0, 50)); }
     else {
-      note = fallbackNote(ps, it.title, h);
+      note = guardNote(it, fallbackNote(ps, it, h));
       if (note) { fbOk++; console.log('[规则]', it.src, '|', note.slice(0, 50)); }
       else { miss++; console.log('[缺失]', it.src, '|', it.title.slice(0, 26)); }
     }
     it.note = note;
   }
 
-  // 按用户要求：无正文/拿不到简述的条目不出现在卡片中，位置由其他有内容的条目替补。
-  // fetch.js 已"宽进"产出多余候选，此处收敛后即为最终展示条目。
-  let kept = items.filter(x => x.note && x.note.length >= 8);
+  // 需求：每张卡都要有要点简述 → 所有条目均保留（兜底模板 guarantee note 非空），不再剔除。
+  let kept = items.slice();
 
   // 硬约束：造价政策占比必须 ≤20%。
   // 软配额（LIMIT）会因每日抓取波动失效，故按比例裁剪兜底：

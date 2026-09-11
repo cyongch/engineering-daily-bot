@@ -64,24 +64,36 @@ function dateFromUrl(u) {
   return '';
 }
 
-// 关键词二次分类（优先级 epc > case > review > price > policy）
+// 关键词二次分类：法规/标准/令/通知/意见/指引优先归"政策"（即便标题含"招标"，
+// 也是招投标管理政策而非 EPC 项目）；仅当标题确为招标/中标/基建项目才归 EPC。
 function classify(t) {
-  if (/EPC|总承包|工程总承包|设计施工|联合体|发包人要求|概算|施工图预算|招标|投标|中标|发包|承包|基建|城市更新|拟在建/.test(t)) return 'epc';
+  // 法规/标准/办法/令/通知/意见/指引等 → 政策或热评（解读类），即使含"招标"
+  if (/办法|条例|规定|令|标准|规范|通知|意见|指引|细则|导则/.test(t)) {
+    if (/解读|评析|评论|观点|观察|分析|解析|详解|探析|透视|梳理|述评|问答|焦点|研读|看法|随笔/.test(t)) return 'review';
+    return 'policy';
+  }
+  if (/EPC|总承包|工程总承包|设计施工|联合体|发包人要求|概算|施工图预算|招标项目|发包|承包|基建|城市更新|拟在建|中标公示|招标公告|中标公告|成交公告|采购结果/.test(t)) return 'epc';
   if (/案例|判决|纠纷|裁定|败诉|胜诉|最高法|指导案例|司法解释|审计/.test(t)) return 'case';
-  // review 识别词扩充：政策解读/解析/透视类文章归属"热评"，而非"造价政策"。
-  // 这是提升热评比重的主要供给杠杆（单纯改配额无效——源里没有解读文章，配额再高也填不满）。
-  if (/解读|评析|评论|观点|观察|分析|看法|随笔|研读|解析|详解|探析|透视|梳理|述评|问答|焦点/.test(t)) return 'review';
+  if (/解读|评析|评论|观点|观察|分析|解析|详解|探析|透视|梳理|述评|问答|焦点|研读|看法|随笔/.test(t)) return 'review';
   if (/水泥|混凝土|砂石|钢材|建材|价格|指数|螺纹|焦炭|焦煤|铁矿|骨料|熟料|信息价/.test(t)) return 'price';
   return 'policy';
 }
 
 // 关键词过滤（宽口径）+ 煤炭类扩充（矿井/矿区/井巷/矿建/煤化工）
-const KW = /造价|工程|EPC|基建|市政|定额|结算|招标|投标|中标|建材|水泥|混凝土|砂石|钢材|装配式|智能建造|全过程咨询|工程咨询|工程造价|计价|工程量清单|施工|总承包|发包|承包|审计|司法解释|标准|规范|煤矿|煤炭|矿山|矿区|矿井|井巷|矿建|煤化工/;
+const KW = /造价|工程|EPC|基建|市政|定额|结算|招标|投标|中标|建材|水泥|混凝土|砂石|钢材|装配式|智能建造|全过程咨询|工程咨询|工程造价|计价|工程量清单|施工|总承包|发包|承包|审计|司法解释|标准|规范|煤矿|煤炭|矿山|矿区|矿井|井巷|矿建|煤化工|公共资源|采购|概算/;
+
+// 非文章标题过滤：会议/论坛/培训/协会动态/网站上线等无造价信息量，进早报会"文不对题"
+const TITLE_DROP = /(大会|论坛|峰会|研讨会|交流会|推进会|座谈会|审查会|网站开通|正式上线|成功上线|上线|蝉联|公众号|视频号|评选结果|表彰|获奖|荣获|年会|换届|开业|签约仪式|开幕式|致辞|培训班|研修班|开班|招募|征集|入库|遴选|入围|比选|竞争性磋商|财务收支|委托第三方|专题讲座|宣讲|讲座|培训|在京召开|于北京召开|在北京举行|顺利召开|成功召开|圆满)/;
+// 离题内容：与工程造价/EPC/建筑/能源无关的民生类（物业/业主等）
+const OFFDOMAIN = /(物业管理|业主权益|业委会|小区|商品房|楼市|房贷|限购)/;
 
 // 源配置：全部经实测"静态可抓 + 工程相关 + 稳定"后入选
 const SOURCES = [
   // 国家住建部
   { name: '住房城乡建设部', url: 'https://www.mohurd.gov.cn/' },
+  // 全国公共资源交易平台（实测鲜度极佳：2026 第44号令《招标投标领域信用管理暂行办法》、
+  // 招标人主体责任指引、招标代理机构管理办法解读等，全为 EPC/招投标/造价真政策）
+  { name: '全国公共资源交易平台', url: 'https://www.ggzy.gov.cn/' },
   // 煤炭/建筑行业源（经实测四轮筛选；此类站点多为 JS 壳，以下为确有工程实务内容者）
   // 排位提前：置于数组末尾时配额会被省住建厅占满，导致持续出 0 条（实测煤炭协会 40 候选出 0）
   // 注意：山东省造价类站点请勿用 sdzjxh.com（实为职业技术教育学会，非造价）；
@@ -134,6 +146,7 @@ let cnt = {};
 // 此时 UTC 日期仍是"前一天"，直接 toISOString() 会让早报日期比北京晚 1 天。
 // 故 +8h 后再取日期，确保与北京时间一致。
 const today = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+const curYear = +today.slice(0, 4);  // 用于剔除陈旧页面（URL 年份过早者直接丢弃）
 
 // ---- 阶段 1：收集各源候选（保留过滤后的候选池）----
 const pools = [];
@@ -141,7 +154,16 @@ for (const s of SOURCES) {
   const html = fetchHtml(s.url);
   if (!html) { console.log('FAIL', s.name); continue; }
   const arr = extract(s.url, html, s.kw || KW)
-    .filter(a => !URL_BLACKLIST.test(a.url) && !TITLE_BLACKLIST.test(a.title) && !DYNAMIC_NOISE.test(a.title))
+    .filter(a => {
+      if (URL_BLACKLIST.test(a.url)) return false;
+      if (TITLE_BLACKLIST.test(a.title)) return false;
+      if (DYNAMIC_NOISE.test(a.title)) return false;
+      if (TITLE_DROP.test(a.title)) return false;          // 会议/论坛/培训/协会动态等非文章
+      if (OFFDOMAIN.test(a.title)) return false;           // 物业/业主等离题内容
+      const dy = dateFromUrl(a.url);
+      if (dy && (+dy.slice(0, 4)) < curYear - 1) return false;  // 陈旧页面（2015/2019 会议等）剔除
+      return true;
+    })
     .slice(0, 40);
   pools.push({ name: s.name, list: arr, added: 0 });
 }
@@ -228,10 +250,27 @@ cnt = {};
 for (const it of items) cnt[it.cat] = (cnt[it.cat] || 0) + 1;
 
 const LABELS = { policy: '造价政策', epc: 'EPC管理', price: '市场价格', case: '典型案例', review: '热评' };
-const parts = Object.keys(cnt).map(k => LABELS[k] + cnt[k] + '条').join('、');
-const bless = parts
-  ? '今日聚焦：' + parts + '。规则在更新，确定性在提前读条款、算波动。'
-  : '今日资讯采集暂未命中，规则未变：把条款读在前、把波动算在早。';
+
+// 行业寄语：基于当日真实内容生成（价格信号 / 最新政策），不再是单纯条数罗列
+function genBless(list, c) {
+  let lead = '';
+  const price = list.find(x => x.cat === 'price' && /[+-]?\d+(?:\.\d+)?%/.test(x.title));
+  if (price) {
+    const pct = price.title.match(/([+-]?\d+(?:\.\d+)?%)/)[1];
+    const nm = price.title.replace(/\s+/g, '').replace(/[0-9.+\-]+%?/g, '').slice(0, 10);
+    lead = (nm || '建材') + '环比' + pct + '，';
+  } else {
+    const pol = list.filter(x => x.cat === 'policy').sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    if (pol) {
+      const core = (pol.title.match(/《([^》]+)》/) || [])[1] || pol.title.slice(0, 14);
+      lead = '《' + core + '》发布，';
+    }
+  }
+  const parts = Object.keys(c).map(k => LABELS[k] + c[k] + '条').join('、');
+  const body = lead ? lead + '今日共' + parts + '。' : '今日聚焦：' + parts + '。';
+  return '造价视点：' + body + '条款读在前、波动算在早。';
+}
+const bless = items.length ? genBless(items, cnt) : '今日资讯采集暂未命中，规则未变：把条款读在前、把波动算在早。';
 
 fs.mkdirSync('data', { recursive: true });
 fs.writeFileSync('data/items.json', JSON.stringify(items, null, 2));

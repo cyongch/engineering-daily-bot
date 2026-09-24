@@ -1,0 +1,6 @@
+{
+  "corpid": "你的企业ID(我的企业→企业信息→企业ID)",
+  "app_secret": "自建应用的 Secret(应用管理→自建→点开应用→Secret)",
+  "agentid": "自建应用的 AgentId(数字)",
+  "touser": "@all"
+}

@@ -46,6 +46,19 @@ jobs:
           SITE_URL: https://cyongch.github.io/engineering-daily-bot/
         run: node scripts/notify-wecom.js
 
+      - name: 推送至企业微信自建应用（同显个人微信）
+        # 自建应用 gettoken 默认不强制 IP 白名单，可在云端直接跑；
+        # 成员开启「在微信中接收企业消息」后，消息同显个人微信。
+        # 未配置 WECOM_CORPID/WECOM_APP_SECRET/WECOM_AGENTID 时静默跳过。
+        continue-on-error: true
+        env:
+          WECOM_CORPID: ${{ secrets.WECOM_CORPID }}
+          WECOM_APP_SECRET: ${{ secrets.WECOM_APP_SECRET }}
+          WECOM_AGENTID: ${{ secrets.WECOM_AGENTID }}
+          WECOM_TOUSER: ${{ secrets.WECOM_TOUSER }}
+          SITE_URL: https://cyongch.github.io/engineering-daily-bot/
+        run: node scripts/notify-wecom-app.js
+
   deploy:
     needs: build
     runs-on: ubuntu-latest

@@ -38,6 +38,13 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
+      - name: 推送至企业微信群机器人
+        # 未配置 WECOM_WEBHOOK 时静默跳过；推送失败不影响 Pages 部署
+        continue-on-error: true
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          SITE_URL: https://cyongch.github.io/engineering-daily-bot/
+        run: node scripts/notify-wecom.js
 
   deploy:
     needs: build

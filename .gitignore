@@ -3,3 +3,4 @@ data/
 dist/
 *.log
 _probe*.html
+.pw-browsers/

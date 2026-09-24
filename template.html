@@ -225,20 +225,9 @@ document.getElementById("catNav").addEventListener("click", e => {
   render(chip.dataset.cat);
 });
 
-/* =========================================================
-   微信分享定制（占位）：部署时换成你自己的 appId / 后端签名接口。
-   =========================================================
-(async function(){
-  try {
-    const cfg = await fetch("/api/wechat-jsconfig/?url=" + encodeURIComponent(location.href)).then(r=>r.json());
-    wx.config({ debug:false, appId:cfg.appId, timestamp:cfg.timestamp, nonceStr:cfg.nonceStr, signature:cfg.signature, jsApiList:["updateAppMessageShareData","updateTimelineShareData"] });
-    wx.ready(function(){
-      wx.updateAppMessageShareData({ title:"工程行业早报", desc:"工程造价 · EPC管理 每日速览", link:location.href, imgUrl:"" });
-      wx.updateTimelineShareData({ title:"工程行业早报｜工程造价 · EPC管理", link:location.href, imgUrl:"" });
-    });
-  } catch(e){ /* 非微信环境静默忽略 */ }
-})();
-*/
+/* 微信分享定制（占位）：如需启用，去注释并配置 appId / 后端签名接口。
+   注意：本块注释内不可再出现块注释的结束符号，否则会提前闭合注释、导致整个脚本语法报错
+   （这正是“行业寄语/日期/分类筛选全部失效”的历史根因）。 */
 </script>
 </body>
 </html>

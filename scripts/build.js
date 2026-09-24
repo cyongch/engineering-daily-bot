@@ -78,6 +78,15 @@ tpl = tpl.replace('__BLESS__', blessJson.slice(1, -1));
 tpl = tpl.replace('__ITEMS__', itemsJson);
 tpl = tpl.replace('__DOMAIN_THUMB__', dtJson);
 
+// ---- 预渲染寄语与日期（此前仅靠运行时 JS 注入 → 不执行脚本的环境显示为空）----
+function escText(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+const nowBJ = new Date(Date.now() + 8 * 3600 * 1000);
+const preTitle = (nowBJ.getMonth() + 1) + '月' + nowBJ.getDate() + '日 · 工程行业早报';
+const preDate = nowBJ.getFullYear() + ' 年 · 每日速览';
+tpl = tpl.replace('<span id="bless"></span>', '<span id="bless">' + escText(bless) + '</span>');
+tpl = tpl.replace('<div class="daily-title" id="dt">工程行业早报</div>', '<div class="daily-title" id="dt">' + preTitle + '</div>');
+tpl = tpl.replace('<div class="daily-date" id="dd">—</div>', '<div class="daily-date" id="dd">' + preDate + '</div>');
+
 // ---- 预渲染静态卡（保证预览面板/无 JS 环境可见）----
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function thumbFor(it) {

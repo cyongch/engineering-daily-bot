@@ -4,3 +4,5 @@ dist/
 *.log
 _probe*.html
 .pw-browsers/
+config/wx.local.json
+
